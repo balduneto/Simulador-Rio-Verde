@@ -1,0 +1,904 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  MapPin, 
+  Droplets, 
+  Dumbbell, 
+  Users, 
+  DollarSign, 
+  Calendar,
+  Info,
+  Target,
+  BookOpen,
+  HelpCircle,
+  FileText,
+  Calculator,
+  Plus,
+  Trash2,
+  RefreshCw,
+  TrendingUp,
+  AlertCircle,
+  Lightbulb,
+  MousePointerClick,
+  Edit3,
+  Hand
+} from 'lucide-react';
+import { 
+  LineChart,
+  Line,
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer,
+  Legend,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
+
+/* --- ESTILOS GLOBAIS DE SEGURANÇA --- */
+const GlobalStyles = () => (
+  <style>{`
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9; 
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1; 
+      border-radius: 3px;
+    }
+    .recharts-wrapper {
+      max-width: 100%;
+    }
+  `}</style>
+);
+
+/**
+ * --- DADOS E FONTES ---
+ */
+
+const SOURCES = {
+  demografia: "Fonte: IBGE (Censo 2022) e Est. 2024 (238 mil hab).",
+  economia: "Fonte: IBGE 2023 (PIB per Capita R$ 98k) e IMB.",
+  zoneamento: "Fonte: Plano Diretor e Análise Imobiliária Local (Medeiros/Interlagos).",
+  agro: "Fonte: CONAB (Calendário Safra Soja/Milho 23/24).",
+  periodo: "Ref: Dados consolidados para planejamento 2025."
+};
+
+const CITY_STATS = {
+  populacao: "238.025",
+  pibPerCapita: "R$ 98.849",
+  pibTotal: "R$ 22,3 Bilhões",
+  posicaoGoias: "3º Maior PIB"
+};
+
+const ZONES = [
+  {
+    id: 'medeiros',
+    name: 'Bairro Medeiros & Interlagos',
+    type: 'Alta Renda / Elite do Agro',
+    class: 'A+',
+    income: '> 30 S.M.',
+    description: 'Conhecido por ter uma das maiores concentrações de renda do Centro-Oeste. Mansões com áreas de lazer extensas e piscinas de grande porte (>50.000L).',
+    poolPotential: 98,
+    fitnessPotential: 85,
+    strategy: 'Exclusividade Total',
+    poolTip: 'Venda o "Sistema Livre de Cloro" como item de saúde indispensável. O cliente não pergunta preço, pergunta se é o melhor.',
+    fitnessTip: 'Atendimento "Bag Delivery" com peças de grife. O foco é a roupa social-fitness para eventos do agronegócio.',
+    color: 'bg-emerald-600'
+  },
+  {
+    id: 'morada',
+    name: 'Morada do Sol & Campestre',
+    type: 'Classe Média Alta / Profissionais',
+    class: 'A/B',
+    income: '15-25 S.M.',
+    description: 'Bairros consolidados, próximos aos clubes tradicionais. Público formado por médicos, advogados e agrônomos. Casas com piscinas médias.',
+    poolPotential: 80,
+    fitnessPotential: 95,
+    strategy: 'Status Racional',
+    poolTip: 'Foque na automação. Este cliente trabalha muito e quer a piscina pronta para uso no fim de semana sem esforço.',
+    fitnessTip: 'Kits coordenados (legging + top). Valorizam marcas técnicas reconhecidas pela durabilidade.',
+    color: 'bg-blue-600'
+  },
+  {
+    id: 'universitario',
+    name: 'Setor Universitário & Central',
+    type: 'Jovem / Universitário / Dinâmico',
+    class: 'B/C',
+    income: '5-12 S.M.',
+    description: 'Alta densidade vertical e repúblicas. O consumo de piscina é via Clubes e Academias, mas o consumo de moda fitness é explosivo.',
+    poolPotential: 20,
+    fitnessPotential: 99,
+    strategy: 'Fast Fashion & Volume',
+    poolTip: 'Mercado B2B: Venda ionizadores industriais para as academias e clubes da região (Life Club, etc).',
+    fitnessTip: 'Coleções "Capsula" semanais. Influenciadores locais e estética de Instagram são vitais aqui.',
+    color: 'bg-purple-600'
+  },
+  {
+    id: 'promissao',
+    name: 'Promissão & Bairros Populares',
+    type: 'Classe Trabalhadora / Ascendente',
+    class: 'C/D',
+    income: '2-5 S.M.',
+    description: 'A força de trabalho da agroindústria (BRF, Perdigão). Lazer focado em piscinas de plástico/fibra ou clubes associativos.',
+    poolPotential: 40,
+    fitnessPotential: 70,
+    strategy: 'Acessibilidade',
+    poolTip: 'Kits de tratamento simplificado para piscinas de fibra e infláveis de grande porte.',
+    fitnessTip: 'Preço competitivo e facilidade de pagamento. Moda fitness que serve como roupa de dia a dia.',
+    color: 'bg-orange-500'
+  }
+];
+
+const SEASONALITY_DATA = [
+  { month: 'Jan', cashflow: 50, event: 'Manutenção', strategy: 'Liquidação de Estoque' },
+  { month: 'Fev', cashflow: 80, event: 'Início Colheita Soja', strategy: 'Pré-Venda Safra (Tickets Altos)' },
+  { month: 'Mar', cashflow: 100, event: 'Pico Soja (R$)', strategy: 'Lançamento Coleções Premium' },
+  { month: 'Abr', cashflow: 90, event: 'Fim Colheita Soja', strategy: 'Fechamento de Obras/Reformas' },
+  { month: 'Mai', cashflow: 60, event: 'Plantio Safrinha', strategy: 'Manutenção Recorrente' },
+  { month: 'Jun', cashflow: 65, event: 'Expo Rio Verde', strategy: 'Moda "Agro-Chic" para a Festa' },
+  { month: 'Jul', cashflow: 95, event: 'Colheita Milho', strategy: '2ª Onda de Liquidez (Férias)' },
+  { month: 'Ago', cashflow: 70, event: 'Pós-Safra', strategy: 'Promoções de Inverno' },
+  { month: 'Set', cashflow: 50, event: 'Vazio Sanitário', strategy: 'Preparação Verão / Fitness' },
+  { month: 'Out', cashflow: 55, event: 'Plantio Verão', strategy: 'Campanha "Projeto Verão"' },
+  { month: 'Nov', cashflow: 75, event: 'Esquenta Verão', strategy: 'Kits Químicos Piscina' },
+  { month: 'Dez', cashflow: 90, event: '13º + Bônus', strategy: 'Presentes e Reformas Rápidas' },
+];
+
+/**
+ * --- COMPONENTES VISUAIS AUXILIARES ---
+ */
+
+const InteractiveBadge = ({ type = "click" }) => (
+  <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200 animate-pulse ml-2 whitespace-nowrap select-none">
+    {type === "click" ? <MousePointerClick className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
+    {type === "click" ? "Interativo: Clique" : "Interativo: Edite"}
+  </span>
+);
+
+const SourceFooter = ({ source, period }) => (
+  <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[10px] text-slate-400 font-medium font-mono gap-2 w-full">
+    <span className="flex items-center gap-1 shrink-0"><FileText className="w-3 h-3" /> {source}</span>
+    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-500 whitespace-nowrap text-[9px] sm:text-[10px]">{period || SOURCES.periodo}</span>
+  </div>
+);
+
+const SectionIntro = ({ title, icon: Icon, children, expertNote, interactiveType }) => (
+  <div className="mb-6 w-full">
+    <div className="bg-white p-4 md:p-5 rounded-lg border-l-4 border-indigo-500 shadow-sm w-full box-border">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Icon className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 flex-shrink-0" />
+          {title}
+        </h2>
+        {interactiveType && <InteractiveBadge type={interactiveType} />}
+      </div>
+      <div className="text-slate-600 text-xs md:text-sm leading-relaxed text-justify space-y-2">
+        {children}
+      </div>
+    </div>
+    {expertNote && (
+      <div className="mt-2 mx-2 md:mx-4 bg-indigo-50 p-3 rounded-b-lg border border-indigo-100 border-t-0 flex gap-3 items-start">
+        <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="block text-[10px] font-bold text-indigo-800 uppercase mb-1">Análise do Especialista</span>
+          <p className="text-xs text-indigo-700 italic leading-relaxed">{expertNote}</p>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+const MainCard = ({ title, value, icon: Icon, subtext, tooltip }) => (
+  <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between h-full relative group hover:shadow-md transition-shadow overflow-hidden w-full box-border">
+    <div className="flex items-start justify-between w-full">
+      <div className="p-3 bg-indigo-50 rounded-lg shrink-0">
+        <Icon className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
+      </div>
+      {tooltip && (
+        <div className="relative group/tooltip ml-2">
+          <HelpCircle className="w-4 h-4 text-slate-300 cursor-help" />
+          <div className="absolute top-8 right-0 w-48 bg-slate-800 text-white text-[10px] p-3 rounded-lg hidden group-hover/block z-50 shadow-xl pointer-events-none leading-relaxed text-left border border-slate-200">
+            {tooltip}
+          </div>
+        </div>
+      )}
+    </div>
+    <div className="mt-4 w-full">
+      <h3 className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-slate-500 truncate" title={title}>{title}</h3>
+      <p className="text-lg md:text-2xl font-bold text-slate-800 mt-1 truncate" title={value}>{value}</p>
+      {subtext && <p className="text-[10px] md:text-xs text-slate-400 mt-2 border-t border-slate-100 pt-2 truncate">{subtext}</p>}
+    </div>
+  </div>
+);
+
+const ProgressBar = ({ label, value, colorClass }) => (
+  <div className="mb-4 last:mb-0 w-full">
+    <div className="flex justify-between mb-1">
+      <span className="text-xs md:text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-xs md:text-sm font-medium text-slate-700">{value}%</span>
+    </div>
+    <div className="w-full bg-slate-200 rounded-full h-2">
+      <div className={`h-2 rounded-full ${colorClass}`} style={{ width: `${value}%` }}></div>
+    </div>
+  </div>
+);
+
+/**
+ * --- SIMULADOR COMPONENT ---
+ */
+const BusinessSimulator = () => {
+  const [capexItems, setCapexItems] = useState([
+    { id: 1, name: 'Reforma / Ponto Comercial', value: 25000 },
+    { id: 2, name: 'Estoque Inicial (Mix)', value: 40000 },
+    { id: 3, name: 'Marketing & Branding', value: 8000 },
+    { id: 4, name: 'Mobiliário e TI', value: 12000 },
+  ]);
+
+  const [opexItems, setOpexItems] = useState([
+    { id: 1, name: 'Aluguel (Bairro Nobre)', value: 4500 },
+    { id: 2, name: 'Equipe (2 func + encargos)', value: 6500 },
+    { id: 3, name: 'Energia/Água/Net', value: 800 },
+    { id: 4, name: 'Tráfego Pago (Ads)', value: 1500 },
+  ]);
+
+  const [revenue, setRevenue] = useState({
+    avgTicket: 350, 
+    volume: 60, 
+    variableCostPct: 45 
+  });
+
+  const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  
+  const addItem = (setter, list) => {
+    const newId = list.length > 0 ? Math.max(...list.map(i => i.id)) + 1 : 1;
+    setter([...list, { id: newId, name: 'Novo Item', value: 0 }]);
+  };
+
+  const removeItem = (setter, list, id) => {
+    setter(list.filter(item => item.id !== id));
+  };
+
+  const updateItem = (setter, list, id, field, value) => {
+    setter(list.map(item => item.id === id ? { ...item, [field]: field === 'value' ? Number(value) : value } : item));
+  };
+
+  const totalCapex = capexItems.reduce((acc, item) => acc + item.value, 0);
+  const totalFixedOpex = opexItems.reduce((acc, item) => acc + item.value, 0);
+  
+  const grossRevenue = revenue.avgTicket * revenue.volume;
+  const variableCost = grossRevenue * (revenue.variableCostPct / 100);
+  const contributionMargin = grossRevenue - variableCost;
+  const netProfit = contributionMargin - totalFixedOpex;
+  
+  const paybackMonths = netProfit > 0 ? totalCapex / netProfit : 0;
+  const paybackYears = paybackMonths / 12;
+
+  const simulatorData = [
+    { name: 'Receita Bruta', value: grossRevenue, color: '#22c55e' }, 
+    { name: 'Custo Variável', value: variableCost, color: '#f59e0b' }, 
+    { name: 'Custo Fixo', value: totalFixedOpex, color: '#ef4444' }, 
+    { name: 'Lucro Líq.', value: netProfit > 0 ? netProfit : 0, color: '#3b82f6' } 
+  ];
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-indigo-100 overflow-hidden mt-8 w-full max-w-full box-border">
+      <div className="bg-indigo-900 text-white p-5 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Calculator className="w-5 h-5 text-green-400" />
+            Simulador de Viabilidade
+          </h3>
+          <p className="text-[10px] text-indigo-300 mt-1 flex items-center gap-1">
+            <Edit3 className="w-3 h-3" />
+            Preencha os campos abaixo para simular seu cenário
+          </p>
+        </div>
+        <button 
+          type="button"
+          onClick={() => {
+            if(window.confirm("Deseja redefinir os valores para o padrão do estudo?")) {
+               window.location.reload();
+            }
+          }}
+          className="text-xs bg-indigo-800 hover:bg-indigo-700 px-3 py-1 rounded text-indigo-200 flex items-center gap-1 transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" /> Reset
+        </button>
+      </div>
+
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+        
+        {/* COLUNA ESQUERDA: INPUTS */}
+        <div className="space-y-6 w-full min-w-0">
+          
+          {/* CAPEX */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 w-full group focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-indigo-600" />
+                <h4 className="text-sm font-bold text-slate-700 uppercase">CAPEX (Inicial)</h4>
+              </div>
+              <button type="button" onClick={() => addItem(setCapexItems, capexItems)} className="p-1 bg-white hover:bg-indigo-50 border border-slate-200 rounded-full text-indigo-600 shadow-sm" title="Adicionar Linha"><Plus className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+              {capexItems.map((item) => (
+                <div key={item.id} className="flex gap-2 items-center text-xs w-full">
+                  <div className="flex-1 relative min-w-0">
+                    <Edit3 className="w-3 h-3 text-slate-300 absolute left-2 top-2.5" />
+                    <input 
+                      type="text" 
+                      value={item.name} 
+                      onChange={(e) => updateItem(setCapexItems, capexItems, item.id, 'name', e.target.value)}
+                      className="w-full border border-slate-300 rounded pl-7 pr-2 py-2 focus:ring-1 focus:ring-indigo-500 outline-none min-w-0 bg-white"
+                      style={{ fontSize: '16px' }} 
+                      placeholder="Nome do Item"
+                    />
+                  </div>
+                  <div className="relative shrink-0" style={{ width: '100px' }}>
+                    <span className="absolute left-2 top-2 text-slate-400">R$</span>
+                    <input 
+                      type="number" 
+                      value={item.value} 
+                      onChange={(e) => updateItem(setCapexItems, capexItems, item.id, 'value', e.target.value)}
+                      className="w-full pl-7 border border-slate-300 rounded px-2 py-2 text-right outline-none bg-white focus:ring-1 focus:ring-indigo-500"
+                      style={{ fontSize: '16px' }}
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeItem(setCapexItems, capexItems, item.id)} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-right text-xs font-bold text-indigo-900 bg-indigo-100 p-2 rounded">
+              Total: {formatCurrency(totalCapex)}
+            </div>
+          </div>
+
+          {/* OPEX */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 w-full group focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+             <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-orange-600" />
+                <h4 className="text-sm font-bold text-slate-700 uppercase">OPEX (Mensal)</h4>
+              </div>
+              <button type="button" onClick={() => addItem(setOpexItems, opexItems)} className="p-1 bg-white hover:bg-indigo-50 border border-slate-200 rounded-full text-indigo-600 shadow-sm" title="Adicionar Linha"><Plus className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+              {opexItems.map((item) => (
+                <div key={item.id} className="flex gap-2 items-center text-xs w-full">
+                   <div className="flex-1 relative min-w-0">
+                    <Edit3 className="w-3 h-3 text-slate-300 absolute left-2 top-2.5" />
+                    <input 
+                      type="text" 
+                      value={item.name} 
+                      onChange={(e) => updateItem(setOpexItems, opexItems, item.id, 'name', e.target.value)}
+                      className="w-full border border-slate-300 rounded pl-7 pr-2 py-2 focus:ring-1 focus:ring-indigo-500 outline-none min-w-0 bg-white"
+                      style={{ fontSize: '16px' }}
+                      placeholder="Nome do Item"
+                    />
+                  </div>
+                  <div className="relative shrink-0" style={{ width: '100px' }}>
+                    <span className="absolute left-2 top-2 text-slate-400">R$</span>
+                    <input 
+                      type="number" 
+                      value={item.value} 
+                      onChange={(e) => updateItem(setOpexItems, opexItems, item.id, 'value', e.target.value)}
+                      className="w-full pl-7 border border-slate-300 rounded px-2 py-2 text-right outline-none bg-white focus:ring-1 focus:ring-indigo-500"
+                      style={{ fontSize: '16px' }}
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeItem(setOpexItems, opexItems, item.id)} className="text-slate-400 hover:text-red-500 shrink-0"><Trash2 className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* VARIÁVEIS DE VENDA */}
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 w-full group focus-within:ring-2 focus-within:ring-indigo-500 transition-all">
+             <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                <h4 className="text-sm font-bold text-slate-700 uppercase">Projeção de Vendas</h4>
+             </div>
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+               <div className="relative w-full">
+                 <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Ticket Médio (R$)</label>
+                 <div className="relative w-full">
+                    <Edit3 className="w-3 h-3 text-slate-300 absolute left-2 top-2.5" />
+                    <input 
+                        type="number" 
+                        value={revenue.avgTicket} 
+                        onChange={(e) => setRevenue({...revenue, avgTicket: Number(e.target.value)})}
+                        className="w-full border border-slate-300 rounded pl-7 pr-2 py-2 bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                        style={{ fontSize: '16px' }}
+                    />
+                 </div>
+               </div>
+               <div className="relative w-full">
+                 <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Qtd. Vendas/Mês</label>
+                  <div className="relative w-full">
+                    <Edit3 className="w-3 h-3 text-slate-300 absolute left-2 top-2.5" />
+                    <input 
+                        type="number" 
+                        value={revenue.volume} 
+                        onChange={(e) => setRevenue({...revenue, volume: Number(e.target.value)})}
+                        className="w-full border border-slate-300 rounded pl-7 pr-2 py-2 bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                        style={{ fontSize: '16px' }}
+                    />
+                  </div>
+               </div>
+               <div className="relative w-full">
+                 <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Custo Variável (%)</label>
+                  <div className="relative w-full">
+                    <Edit3 className="w-3 h-3 text-slate-300 absolute left-2 top-2.5" />
+                    <input 
+                        type="number" 
+                        value={revenue.variableCostPct} 
+                        onChange={(e) => setRevenue({...revenue, variableCostPct: Number(e.target.value)})}
+                        className="w-full border border-slate-300 rounded pl-7 pr-2 py-2 bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                        style={{ fontSize: '16px' }}
+                    />
+                  </div>
+               </div>
+             </div>
+          </div>
+
+        </div>
+
+        {/* COLUNA DIREITA: RESULTADOS */}
+        <div className="flex flex-col h-full bg-slate-50 rounded-xl border border-slate-200 p-4 md:p-6 w-full min-w-0 box-border">
+          <h4 className="text-sm font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            Demonstrativo de Resultados (DRE)
+          </h4>
+
+          {/* Gráfico Simplificado com Container Estabilizado (Absolute) */}
+          <div className="w-full mb-6 relative" style={{ height: '220px' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={simulatorData} layout="vertical" margin={{top: 0, right: 10, left: 10, bottom: 0}}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" width={85} tick={{fontSize: 10}} />
+                  <RechartsTooltip 
+                    cursor={{fill: 'transparent'}} 
+                    formatter={(val) => formatCurrency(val)} 
+                    contentStyle={{ zIndex: 1000 }} 
+                    wrapperStyle={{ zIndex: 1000 }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
+                    {simulatorData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="space-y-3 flex-1 w-full">
+             <div className="flex justify-between text-xs border-b border-slate-200 pb-2">
+               <span className="text-slate-600">Receita Bruta Mensal</span>
+               <span className="font-bold text-slate-800">{formatCurrency(grossRevenue)}</span>
+             </div>
+             <div className="flex justify-between text-xs border-b border-slate-200 pb-2">
+               <span className="text-slate-600">(-) Custo Variável ({revenue.variableCostPct}%)</span>
+               <span className="font-medium text-orange-600">{formatCurrency(variableCost)}</span>
+             </div>
+             <div className="flex justify-between text-xs border-b border-slate-200 pb-2">
+               <span className="text-slate-600">(=) Margem de Contribuição</span>
+               <span className="font-medium text-slate-800">{formatCurrency(contributionMargin)}</span>
+             </div>
+             <div className="flex justify-between text-xs border-b border-slate-200 pb-2">
+               <span className="text-slate-600">(-) Custo Fixo (OPEX)</span>
+               <span className="font-medium text-red-600">{formatCurrency(totalFixedOpex)}</span>
+             </div>
+             
+             <div className={`flex justify-between text-sm p-3 rounded-lg mt-2 ${netProfit > 0 ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'}`}>
+               <span className="font-bold uppercase">Lucro Líquido Mensal</span>
+               <span className="font-bold">{formatCurrency(netProfit)}</span>
+             </div>
+          </div>
+
+          {/* KPI PAYBACK */}
+          <div className="mt-6 pt-4 border-t-2 border-dashed border-slate-300 w-full">
+             <div className="flex items-center gap-2 mb-2">
+               <span className="text-xs font-bold text-indigo-600 uppercase">Payback Estimado</span>
+               <div className="group relative">
+                 <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                 <div className="absolute bottom-full right-0 w-48 bg-slate-800 text-white text-[9px] p-2 rounded hidden group-hover/block mb-2 z-50">
+                   Tempo necessário para recuperar o CAPEX com base no Lucro Líquido atual.
+                 </div>
+               </div>
+             </div>
+             
+             {netProfit > 0 ? (
+               <div className="flex items-baseline gap-2">
+                 <span className="text-3xl font-black text-slate-800">{paybackMonths.toFixed(1)}</span>
+                 <span className="text-sm font-medium text-slate-500">meses</span>
+                 <span className="text-xs text-slate-400 ml-2">({paybackYears.toFixed(1)} anos)</span>
+               </div>
+             ) : (
+               <div className="flex items-center gap-2 text-red-500 bg-red-50 p-2 rounded text-xs">
+                 <AlertCircle className="w-4 h-4" />
+                 <span>Operação no prejuízo. Payback incalculável.</span>
+               </div>
+             )}
+          </div>
+        </div>
+
+      </div>
+      
+      <div className="bg-slate-100 p-3 text-[10px] text-slate-500 text-center border-t border-slate-200">
+        * Simulação simplificada para fins didáticos. Valores padrão baseados na média de mercado local (2024).
+      </div>
+    </div>
+  );
+};
+
+
+export default function RioVerdeMarketApp() {
+  const [activeZone, setActiveZone] = useState(ZONES[0]);
+  const [filterClass, setFilterClass] = useState('all');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const filteredZones = filterClass === 'all' 
+    ? ZONES 
+    : ZONES.filter(z => z.class.includes(filterClass));
+
+  return (
+    // CONTAINER PRINCIPAL: Proteção contra overflow global e largura máxima
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-8 md:pb-12 w-full overflow-x-hidden">
+      <GlobalStyles />
+      
+      {/* HEADER */}
+      <header className="bg-gradient-to-r from-indigo-900 to-blue-900 text-white p-5 md:p-8 shadow-xl w-full">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            
+            {/* Title Section */}
+            <div className="w-full md:w-auto flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-green-400 text-indigo-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Mapeamento Sócio-Econômico 2025
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-4xl font-bold flex flex-wrap items-center gap-2 leading-tight">
+                Inteligência de Mercado
+                <span className="block w-full md:w-auto md:inline text-indigo-200 text-lg md:text-3xl font-light">| Rio Verde (GO)</span>
+              </h1>
+              <p className="text-indigo-200 mt-2 w-full md:max-w-2xl text-xs md:text-sm leading-relaxed">
+                Estudo interativo: <strong>Ionizadores de Piscina</strong> e <strong>Moda Fitness</strong> cruzados com dados oficiais do Censo e da Safra.
+              </p>
+            </div>
+            
+            {/* Right Side: KPI + Logo */}
+            <div className="w-full md:w-auto flex flex-col-reverse md:flex-row items-center gap-4">
+              
+              {/* KPI Card */}
+              <div className="w-full md:w-auto bg-white/10 p-4 rounded-lg backdrop-blur-sm border border-white/10 flex md:block items-center justify-between">
+                <div className="text-left md:text-right">
+                  <div className="text-[10px] text-indigo-200 uppercase tracking-widest mb-1">Destaque Nacional (IBGE 23)</div>
+                  <div className="text-[10px] text-white">PIB per Capita</div>
+                </div>
+                <div className="text-2xl md:text-3xl font-bold text-green-400 md:mt-1 pl-4 border-l border-white/20 md:border-l-0 md:pl-0">
+                  {CITY_STATS.pibPerCapita}
+                </div>
+              </div>
+
+              {/* LOGO INSERTION - TAQ IONS */}
+              <img 
+                src="https://i.postimg.cc/QtSXCKyV/taq-ions-removebg-preview.png" 
+                alt="TAQ Ions Logo" 
+                className="h-16 w-auto object-contain hidden md:block" 
+                title="TAQ Ions"
+              />
+              <img 
+                src="https://i.postimg.cc/QtSXCKyV/taq-ions-removebg-preview.png" 
+                alt="TAQ Ions Logo" 
+                className="h-12 w-auto object-contain md:hidden self-end" 
+                title="TAQ Ions"
+              />
+
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 md:space-y-12 w-full">
+        
+        {/* SEÇÃO 1: MACRO */}
+        <section className="w-full">
+          <SectionIntro 
+            title="Panorama Macroeconômico e Demográfico" 
+            icon={BookOpen}
+            expertNote="Rio Verde não é apenas uma cidade rica; é uma cidade 'líquida'. A riqueza circula rápido devido aos pagamentos de safra, gerando picos de consumo que cidades industriais não possuem."
+          >
+            <p>
+              <strong>Entendendo os Números:</strong> Com uma população estimada em <strong>{CITY_STATS.populacao}</strong> habitantes (Censo 2022/Est. 2024), a cidade se comporta como uma capital regional. 
+              O dado mais impressionante é o <strong>PIB per Capita de quase R$ 100 mil</strong>. Para comparação, a média nacional gira em torno de R$ 35 mil.
+            </p>
+            <p>
+              Isso significa que, estatisticamente, cada habitante de Rio Verde "produz" 3x mais riqueza que a média brasileira, criando um solo fértil para produtos de <strong>ticket alto (como piscinas)</strong> e <strong>consumo de status (moda)</strong>.
+            </p>
+          </SectionIntro>
+          
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <MainCard 
+                title="População (Censo 22)" 
+                value={CITY_STATS.populacao} 
+                icon={Users} 
+                subtext="238.025 (Est. 2024)"
+                tooltip="População atualizada. O crescimento populacional acelerado demanda novos condomínios e academias."
+              />
+              <MainCard 
+                title="PIB Total (R$)" 
+                value={CITY_STATS.pibTotal} 
+                icon={DollarSign} 
+                subtext={CITY_STATS.posicaoGoias}
+                tooltip="Soma de todas as riquezas produzidas. O 3º maior de Goiás, atrás apenas de Goiânia e Anápolis."
+              />
+              <MainCard 
+                title="Público Piscinas" 
+                value="Classe A+" 
+                icon={Droplets} 
+                subtext="Bairros Medeiros/Interlagos"
+                tooltip="Foco nos bairros onde os terrenos ultrapassam 450m², permitindo piscinas de grande porte."
+              />
+              <MainCard 
+                title="Público Fitness" 
+                value="Multiclasse" 
+                icon={Dumbbell} 
+                subtext="Cultura de 'Corpo Saudável'"
+                tooltip="Rio Verde possui alta densidade de academias por habitante, impulsionada pela cultura jovem universitária."
+              />
+            </div>
+            <SourceFooter source={`${SOURCES.demografia} | ${SOURCES.economia}`} />
+          </div>
+        </section>
+
+        {/* SEÇÃO 2: GEOGRAFIA (GRID RESPONSIVO) */}
+        <section className="w-full">
+          <SectionIntro 
+            title="Geografia do Consumo (Zoneamento Real)" 
+            icon={MapPin}
+            interactiveType="click"
+            expertNote="Não tente vender 'preço' no Bairro Medeiros, venda 'tecnologia'. Lá, a piscina é um item de decoração e status. Já no Universitário, a moda fitness é uniforme diário."
+          >
+            <p>
+              <strong>Mapeamento de Bairros Reais:</strong> Utilizamos dados imobiliários locais para segmentar a cidade. 
+              Identificamos o <strong>Bairro Medeiros</strong> como o epicentro da classe alta (Muitos produtores rurais residem aqui), enquanto o <strong>Setor Universitário</strong> concentra o público jovem consumidor de moda rápida.
+            </p>
+             <p className="text-xs text-indigo-600 font-semibold mt-2 flex items-center gap-1">
+              <Hand className="w-3 h-3 animate-bounce" />
+              Dica: Clique nos cartões abaixo para ver os detalhes de cada bairro.
+            </p>
+          </SectionIntro>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 w-full">
+            {/* ESQUERDA: MAPA LÓGICO */}
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col order-2 lg:order-1 w-full min-w-0">
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                   Selecione a Zona <MousePointerClick className="w-3 h-3 text-indigo-400" />
+                </span>
+                
+                {/* Filtros Mobile: Flex Wrap para não quebrar layout */}
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                  {['all', 'A', 'B', 'C'].map((cls) => (
+                    <button
+                      type="button"
+                      key={cls}
+                      onClick={() => setFilterClass(cls)}
+                      className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-full transition-colors text-center ${
+                        filterClass === cls 
+                          ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200' 
+                          : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      {cls === 'all' ? 'TODOS' : `CLASSE ${cls}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="p-4 md:p-6 bg-slate-50 relative flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 w-full">
+                  {filteredZones.map((zone) => (
+                    <button
+                      type="button"
+                      key={zone.id}
+                      onClick={() => setActiveZone(zone)}
+                      className={`relative p-4 md:p-5 rounded-xl border-2 text-left transition-all duration-300 group w-full ${
+                        activeZone.id === zone.id 
+                          ? 'border-indigo-600 bg-white shadow-lg ring-1 ring-indigo-100 transform scale-[1.01]' 
+                          : 'border-white bg-white hover:border-indigo-300 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className={`w-3 h-3 rounded-full ${zone.color} shrink-0`} title="Cor Zona"></div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                          Renda: {zone.income}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-slate-800 text-sm group-hover:text-indigo-700">{zone.name}</h3>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{zone.type}</p>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 md:mt-8">
+                    <SourceFooter source={SOURCES.zoneamento} />
+                </div>
+              </div>
+            </div>
+
+            {/* DIREITA: PAINEL DE DETALHES (Fixo em desktop, scroll em mobile) */}
+            <div className="bg-white rounded-xl shadow-lg border border-indigo-100 p-5 md:p-6 flex flex-col relative overflow-hidden h-full order-1 lg:order-2 w-full min-w-0">
+              <div className={`absolute top-0 left-0 w-full h-1.5 ${activeZone.color}`} />
+              
+              <div className="mb-6">
+                <h2 className="text-lg md:text-xl font-bold text-slate-800 leading-tight">{activeZone.name}</h2>
+                <div className="flex items-center gap-2 mt-2 mb-3">
+                  <span className="text-[10px] font-semibold text-indigo-800 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                    S.M. = Salários Mínimos
+                  </span>
+                </div>
+                <p className="text-slate-600 text-xs md:text-sm leading-relaxed italic border-l-2 border-slate-200 pl-3">"{activeZone.description}"</p>
+              </div>
+
+              <div className="space-y-6 flex-1 w-full">
+                {/* Potencial Metres */}
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 w-full">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Aderência ao Produto</h3>
+                    <Info className="w-3 h-3 text-slate-300" />
+                  </div>
+                  <ProgressBar 
+                    label="Tratamento (Íons)" 
+                    value={activeZone.poolPotential} 
+                    colorClass="bg-blue-500" 
+                  />
+                  <ProgressBar 
+                    label="Moda Fitness" 
+                    value={activeZone.fitnessPotential} 
+                    colorClass="bg-pink-500" 
+                  />
+                </div>
+
+                {/* Estratégia de Ação */}
+                <div className="w-full">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3">
+                    <Target className="w-4 h-4 text-red-500" />
+                    Estratégia Recomendada
+                  </h3>
+                  <div className="space-y-3 w-full">
+                    <div className="flex flex-col gap-2 p-3 bg-blue-50/80 border border-blue-100 rounded-lg text-sm text-blue-900 w-full">
+                      <div className="flex items-center gap-2 font-bold text-xs uppercase text-blue-700">
+                        <Droplets className="w-3 h-3" /> Piscinas
+                      </div>
+                      <p className="text-xs md:text-sm">{activeZone.poolTip}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 p-3 bg-pink-50/80 border border-pink-100 rounded-lg text-sm text-pink-900 w-full">
+                      <div className="flex items-center gap-2 font-bold text-xs uppercase text-pink-700">
+                        <Dumbbell className="w-3 h-3" /> Fitness
+                      </div>
+                      <p className="text-xs md:text-sm">{activeZone.fitnessTip}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SEÇÃO 3: SAZONALIDADE */}
+        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 mb-8 w-full">
+          <SectionIntro 
+            title="Sazonalidade Financeira (Calendário Safra)" 
+            icon={Calendar}
+            expertNote="Atenção aos meses de Março e Julho. É quando os pagamentos das safras de Soja e Milho (respectivamente) caem na conta dos produtores, irrigando todo o comércio local."
+          >
+            <p>
+              <strong>O "Pulso" do Dinheiro:</strong> Diferente de capitais que dependem de salários mensais, Rio Verde tem injeções massivas de capital duas vezes ao ano.
+              O gráfico abaixo mostra a correlação direta entre a <strong>Colheita da Soja (Q1)</strong> e o <strong>Milho Safrinha (Q3)</strong> com a disponibilidade de caixa.
+            </p>
+          </SectionIntro>
+
+          {/* Container do Gráfico: Abordagem Absoluta dentro de Relativo com Altura Fixa via style */}
+          <div className="w-full mt-6 relative" style={{ height: '300px' }}>
+            {isMounted && (
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={SEASONALITY_DATA} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis 
+                      dataKey="month" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 10}} 
+                      interval="preserveStartEnd"
+                      />
+                      <YAxis hide />
+                      <RechartsTooltip 
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px', zIndex: 1000 }}
+                      labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                      wrapperStyle={{ outline: 'none', zIndex: 1000 }}
+                      />
+                      <Legend verticalAlign="top" height={36} iconType="circle" />
+                      <Line 
+                      type="monotone" 
+                      dataKey="cashflow" 
+                      name="Liquidez (Entrada de R$)"
+                      stroke="#22c55e" 
+                      strokeWidth={3} 
+                      dot={{ r: 3, fill: '#22c55e' }}
+                      activeDot={{ r: 6 }}
+                      />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-4 w-full">
+            {SEASONALITY_DATA.map((item) => (
+              <div key={item.month} className="bg-slate-50 p-2 rounded border border-slate-100 text-center hover:bg-indigo-50 transition-colors cursor-default group w-full">
+                <div className="text-xs font-bold text-slate-400 group-hover:text-indigo-600">{item.month}</div>
+                <div className="text-[10px] font-bold text-slate-800 mt-1">{item.event}</div>
+                <div className="text-[9px] text-slate-500 mt-1 leading-tight italic hidden sm:block">{item.strategy}</div>
+                <div className="text-[9px] text-slate-500 mt-1 leading-tight italic sm:hidden line-clamp-1">{item.strategy}</div>
+              </div>
+            ))}
+          </div>
+          <SourceFooter source={SOURCES.agro} />
+        </section>
+
+        {/* SEÇÃO 4: SIMULADOR DE NEGÓCIOS (NOVO) */}
+        <section className="w-full">
+          <SectionIntro 
+            title="Modele seu Negócio (Simulador de Viabilidade)" 
+            icon={Calculator}
+            interactiveType="edit"
+            expertNote="Ajustamos os valores padrão para a realidade de Rio Verde (Aluguéis e Salários de 2024). Note como o OPEX (Custo Fixo) impacta o lucro final."
+          >
+            <p>
+              <strong>Como usar esta ferramenta:</strong> Insira os custos estimados para abrir seu negócio.
+              Os valores pré-carregados refletem um quiosque de shopping ou pequena loja de rua em bairros nobres (Zona A/B).
+            </p>
+             <p className="text-xs text-indigo-600 font-semibold mt-2 flex items-center gap-1">
+              <Edit3 className="w-3 h-3 animate-pulse" />
+              Dica: Os campos com ícone de lápis são editáveis. Clique para digitar.
+            </p>
+          </SectionIntro>
+          
+          <BusinessSimulator />
+        </section>
+
+      </main>
+    </div>
+  );
+}
